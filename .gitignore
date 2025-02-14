@@ -1,3 +1,2 @@
 output
-graphs.pt
-processed_graphs.pt
+*.pt
