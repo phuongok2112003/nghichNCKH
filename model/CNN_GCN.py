@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, global_mean_pool
+from torch_geometric.nn import GCNConv, global_mean_pool,GlobalAttention
 from torch_geometric.data import Data, DataLoader
 from imblearn.over_sampling import SMOTE
 import numpy as np
 from sklearn.model_selection import train_test_split
+from torch.nn import Linear
 # === 1. Define the Model ===
 class NodeGCN(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
@@ -25,7 +26,7 @@ class EdgeCNN(nn.Module):
         self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=1)
 
     def forward(self, edge_attr):
-        print(edge_attr.shape)
+       
         if edge_attr is None:
             print("None rồi ......................")
             return None
@@ -39,29 +40,29 @@ class EdgeCNN(nn.Module):
         return edge_attr.squeeze(0).permute(1, 0)
 
 class GraphModel(nn.Module):
-    def __init__(self, node_input_dim, node_hidden_dim, node_output_dim, edge_input_dim, edge_output_dim, final_dim):
+    def __init__(self, node_input_dim, node_hidden_dim, node_output_dim, 
+                 edge_input_dim, edge_output_dim, final_dim):
         super(GraphModel, self).__init__()
         self.node_gcn = NodeGCN(node_input_dim, node_hidden_dim, node_output_dim)
         self.edge_cnn = EdgeCNN(edge_input_dim, edge_output_dim)
 
-        # Sử dụng kích thước thực tế của graph_features
-        graph_feature_dim = node_output_dim + edge_output_dim  # Điều chỉnh nếu cần
+        self.att = GlobalAttention(gate_nn=Linear(node_output_dim, 1))  # Thêm Attention Pooling
+
+        graph_feature_dim = node_output_dim + edge_output_dim  # Tổng số chiều của đặc trưng graph
         self.fc = nn.Linear(graph_feature_dim, final_dim)
 
     def forward(self, data):
         node_features = self.node_gcn(data.x, data.edge_index)
         edge_features = self.edge_cnn(data.edge_attr) if data.edge_attr is not None else None
 
-        # Global mean pooling cho node
-        node_features = global_mean_pool(node_features, data.batch)
+        # **Dùng Attention Pooling thay vì Mean/Max**
+        node_features = self.att(node_features, data.batch)
 
         if edge_features is not None:
-            edge_batch = data.batch[data.edge_index[0]]  # Tạo batch index cho cạnh
+            edge_batch = data.batch[data.edge_index[0]]  
             edge_features = global_mean_pool(edge_features, edge_batch)
-
             graph_features = torch.cat([node_features, edge_features], dim=-1)
         else:
-            print("None rồi ......................")
             graph_features = node_features
 
         out = self.fc(graph_features)
@@ -74,18 +75,42 @@ class GraphModel(nn.Module):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 graphs = torch.load('graphs.pt')
 
-# Chia train-test (80% train, 20% test)
-train_graphs, test_graphs = train_test_split(graphs, test_size=0.2, random_state=11, stratify=[g.y.item() for g in graphs])
 
+print("Length cua graphs: ",len(graphs))
+
+graphs_0 = [g for g in graphs if g.y.item() == 0]
+graphs_1 = [g for g in graphs if g.y.item() == 1]
+
+# Lấy số lượng nhỏ hơn giữa hai loại nhãn
+min_size = min(len(graphs_0), len(graphs_1))
+print(f"Balancing dataset to {min_size} samples per class...")
+
+
+balanced_graphs = graphs_0[:min_size] + graphs_1[:min_size]
+remaining_graphs = graphs_0[min_size:] + graphs_1[min_size:]
+np.random.shuffle(balanced_graphs)
+np.random.shuffle(remaining_graphs)
+
+# === 4. Split into Train/Test Sets ===
+print("Splitting into train (80%) and test (20%)...")
+train_graphs, test_graphs = train_test_split(
+    balanced_graphs, test_size=0.2, random_state=11, stratify=[g.y.item() for g in balanced_graphs]
+)
+
+size_remaining_graphs=len(remaining_graphs)
+print("Do dai cua data: ",len(balanced_graphs))
+print("Length cua data re con lai: ",len(remaining_graphs))
+train_graphs=train_graphs+remaining_graphs[:(size_remaining_graphs//5)]
+test_graphs = test_graphs+remaining_graphs[(size_remaining_graphs//5):]
 # === 2. Extract Features from GraphModel ===
 model = GraphModel(node_input_dim=100, node_hidden_dim=64, node_output_dim=32,
                    edge_input_dim=50, edge_output_dim=16, final_dim=2).to(device)
 model.eval()
 
 def extract_features(graphs):
-    loader = DataLoader(graphs, batch_size=8, shuffle=False)
+    loader = DataLoader(graphs, batch_size=1, shuffle=False)
     features, labels = [], []
-
+    print(len(loader))
     with torch.no_grad():
         for data in loader:
             data = data.to(device)
