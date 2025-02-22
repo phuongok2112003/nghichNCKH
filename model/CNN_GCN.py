@@ -100,8 +100,8 @@ train_graphs, test_graphs = train_test_split(
 size_remaining_graphs=len(remaining_graphs)
 print("Do dai cua data: ",len(balanced_graphs))
 print("Length cua data re con lai: ",len(remaining_graphs))
-train_graphs=train_graphs+remaining_graphs[:(size_remaining_graphs//5)]
-test_graphs = test_graphs+remaining_graphs[(size_remaining_graphs//5):]
+train_graphs=train_graphs+remaining_graphs[:18000]
+test_graphs = test_graphs+remaining_graphs[18000:]
 # === 2. Extract Features from GraphModel ===
 model = GraphModel(node_input_dim=100, node_hidden_dim=64, node_output_dim=32,
                    edge_input_dim=50, edge_output_dim=16, final_dim=2).to(device)
