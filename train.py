@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 import torch
 import seaborn as sns
@@ -27,8 +28,19 @@ X_test, y_test = convert_to_numpy(test_graphs)
 clf = RandomForestClassifier(n_estimators=100, max_depth=10, max_features="sqrt", max_samples=0.8, random_state=42)
 clf.fit(X_train, y_train)
 
+
+
+# Lưu model vào file
+joblib.dump(clf, "random_forest_model.pkl")
+print("✅ Model saved successfully!")
+
+
 # === 8. Evaluate Model ===
-y_pred = clf.predict(X_test)
+clf_loaded = joblib.load("random_forest_model.pkl")
+
+# Dự đoán trên tập test
+y_pred = clf_loaded.predict(X_test)
+
 
 # === 9. Tính Confusion Matrix ===
 conf_matrix = confusion_matrix(y_test, y_pred)
@@ -63,10 +75,7 @@ FP = np.sum(conf_matrix, axis=0) - TP  # False Positives (cột trừ TP)
 FN = np.sum(conf_matrix, axis=1) - TP  # False Negatives (hàng trừ TP)
 TN = np.sum(conf_matrix) - (TP + FP + FN)  # True Negatives (tổng trừ TP, FP, FN)
 
-# In từng giá trị TP, FP, FN, TN cho từng lớp
-for i, label in enumerate(np.unique(y_test)):
-    print(f"\nClass {label}:")
-    print(f"TP = {TP[i]}, FP = {FP[i]}, FN = {FN[i]}, TN = {TN[i]}")
+
 plt.figure(figsize=(6,5))
 sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
 plt.xlabel("Predicted Label")

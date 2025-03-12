@@ -8,6 +8,15 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.nn import Linear
 # === 1. Define the Model ===
+
+def set_seed(seed=42):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42)
 class NodeGCN(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(NodeGCN, self).__init__()
@@ -15,7 +24,7 @@ class NodeGCN(nn.Module):
         self.conv2 = GCNConv(hidden_channels, out_channels)
 
     def forward(self, x, edge_index):
-        x = F.relu(self.conv1(x, edge_index))
+        x = F.sigmoid(self.conv1(x, edge_index))
         x = self.conv2(x, edge_index)
         return x
 
@@ -34,7 +43,7 @@ class EdgeCNN(nn.Module):
         if edge_attr.dim() == 2:
             edge_attr = edge_attr.permute(1, 0).unsqueeze(0)
 
-        edge_attr = F.relu(self.conv1(edge_attr))
+        edge_attr = F.sigmoid(self.conv1(edge_attr))
         edge_attr = self.conv2(edge_attr)
         
         return edge_attr.squeeze(0).permute(1, 0)
@@ -89,6 +98,9 @@ print(f"Balancing dataset to {min_size} samples per class...")
 balanced_graphs = graphs_0[:min_size] + graphs_1[:min_size]
 remaining_graphs = graphs_0[min_size:] + graphs_1[min_size:]
 np.random.shuffle(balanced_graphs)
+np.random.shuffle(balanced_graphs)
+np.random.shuffle(balanced_graphs)
+
 np.random.shuffle(remaining_graphs)
 
 # === 4. Split into Train/Test Sets ===
@@ -126,6 +138,7 @@ def extract_features(graphs):
 X_train, y_train = extract_features(train_graphs)
 X_test, y_test = extract_features(test_graphs)
 
+print("X_train[0] ",X_train[0])
 # === 3. Apply SMOTE to Train Set ===
 smote = SMOTE(random_state=42)
 X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
