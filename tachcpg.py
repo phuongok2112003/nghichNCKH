@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from torch_geometric.data import Data
 from gensim.models import Word2Vec
 import numpy as np
-
+from tqdm import tqdm
 # Namespace cho GraphML
 NAMESPACE = {"ns": "http://graphml.graphdrawing.org/xmlns"}
 
@@ -29,7 +29,7 @@ def load_graph_from_folder(folder_path):
         for data in node.findall("ns:data", NAMESPACE):
             key = data.get("key")
             value = data.text if data.text else "UNKNOWN"
-            node_data[key] = value
+            node_data[key] = f"{key}:{value}"
 
         # Lưu node vào dictionary
         node_features[node_id] = node_data
@@ -48,7 +48,7 @@ def load_graph_from_folder(folder_path):
         for data in edge.findall("ns:data", NAMESPACE):
             key = data.get("key")
             value = data.text if data.text else "UNKNOWN"
-            edge_data[key] = value
+            edge_data[key] = f"{key}:{value}"
 
         if src in node_mapping and tgt in node_mapping:
             edges.append((node_mapping[src], node_mapping[tgt]))
@@ -63,7 +63,7 @@ def load_graph_from_folder(folder_path):
 
     # Sử dụng Word2Vec để nhúng đặc trưng của node
     node_sentences = [list(data.values()) for data in node_features.values()]
-    node_model = Word2Vec(sentences=node_sentences, vector_size=100, min_count=1, workers=4)
+    node_model = Word2Vec(sentences=node_sentences, vector_size=50, min_count=1, workers=4)
 
     x = []
     for data in node_features.values():
@@ -93,10 +93,10 @@ def load_graph_from_folder(folder_path):
 # Hàm tải toàn bộ đồ thị
 def load_all_graphs(base_path):
     graphs = []
-    for folder in os.listdir(base_path):
+    for folder in tqdm(os.listdir(base_path), desc="Xử lý đồ thị"):
         folder_path = os.path.join(base_path, folder)
         if os.path.isdir(folder_path):
-            print(f"Đang xử lý thư mục: {folder_path}")
+        
             graph = load_graph_from_folder(folder_path)
             if graph:
                 # Gắn nhãn dựa trên tên thư mục

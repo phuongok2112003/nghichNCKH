@@ -9,8 +9,8 @@ from sklearn.metrics import (
 )
 
 # === 6. Load Train & Test Dataset ===
-train_graphs = torch.load('train_graphs.pt')  # Đã cân bằng bằng SMOTE
-test_graphs = torch.load('test_graphs.pt')    # Giữ nguyên, không SMOTE
+train_graphs = torch.load('train_graphs.pt', weights_only=False)  # Đã cân bằng bằng SMOTE
+test_graphs = torch.load('test_graphs.pt', weights_only=False)    # Giữ nguyên, không SMOTE
 
 # Chuyển đổi dữ liệu PyG thành numpy array
 def convert_to_numpy(graphs):
@@ -25,7 +25,7 @@ X_train, y_train = convert_to_numpy(train_graphs)
 X_test, y_test = convert_to_numpy(test_graphs)
 
 # === 7. Train Random Forest ===
-clf = RandomForestClassifier(n_estimators=100, max_depth=10, max_features="sqrt", max_samples=0.8, random_state=42)
+clf = RandomForestClassifier(n_estimators=100, max_depth=10, max_features="sqrt", max_samples=0.8, random_state=42,class_weight='balanced')
 clf.fit(X_train, y_train)
 
 

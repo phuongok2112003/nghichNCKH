@@ -7,6 +7,7 @@ from imblearn.over_sampling import SMOTE
 import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.nn import Linear
+import os
 # === 1. Define the Model ===
 
 def set_seed(seed=42):
@@ -82,7 +83,7 @@ class GraphModel(nn.Module):
 
 # === 1. Load Data ===
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-graphs = torch.load('graphs.pt')
+graphs = torch.load('graphs.pt', weights_only=False)
 
 
 print("Length cua graphs: ",len(graphs))
@@ -108,16 +109,43 @@ print("Splitting into train (80%) and test (20%)...")
 train_graphs, test_graphs = train_test_split(
     balanced_graphs, test_size=0.2, random_state=11, stratify=[g.y.item() for g in balanced_graphs]
 )
+for g in train_graphs:
+    print(f"Nodes: {g.x.shape[0]}, Edges: {g.edge_index.shape[1]}")
 
 size_remaining_graphs=len(remaining_graphs)
 print("Do dai cua data: ",len(balanced_graphs))
 print("Length cua data re con lai: ",len(remaining_graphs))
-train_graphs=train_graphs+remaining_graphs[:18000]
-test_graphs = test_graphs+remaining_graphs[18000:]
+# train_graphs=train_graphs+remaining_graphs[:18000]
+# test_graphs = test_graphs+remaining_graphs[18000:]
 # === 2. Extract Features from GraphModel ===
-model = GraphModel(node_input_dim=100, node_hidden_dim=64, node_output_dim=32,
-                   edge_input_dim=50, edge_output_dim=16, final_dim=2).to(device)
-model.eval()
+# === 3. Save and Load Fixed Weights ===
+WEIGHT_PATH = "fixed_weights.pth"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def save_fixed_weights(model):
+    """Lưu trọng số cố định vào file."""
+    torch.save(model.state_dict(), WEIGHT_PATH)
+    print(f"✅ Đã lưu trọng số cố định vào '{WEIGHT_PATH}'.")
+
+def load_fixed_weights(model):
+    """Tải trọng số cố định nếu đã có file."""
+    if os.path.exists(WEIGHT_PATH):
+        model.load_state_dict(torch.load(WEIGHT_PATH, map_location=device))
+        model.eval()  # Đặt chế độ inference
+        print(f"✅ Đã tải trọng số cố định từ '{WEIGHT_PATH}'.")
+    else:
+        print("⚠️ Chưa có file trọng số, cần lưu trước!")
+
+# === 4. Khởi tạo mô hình và sử dụng trọng số cố định ===
+model = GraphModel(node_input_dim=50, node_hidden_dim=64, node_output_dim=32,
+                   edge_input_dim=50, edge_output_dim=32, final_dim=2).to(device)
+
+if not os.path.exists(WEIGHT_PATH):
+    print("🚀 Lưu trọng số cố định lần đầu...")
+    save_fixed_weights(model)
+else:
+    print("🔄 Đang tải trọng số cố định...")
+    load_fixed_weights(model)
 
 def extract_features(graphs):
     loader = DataLoader(graphs, batch_size=1, shuffle=False)
