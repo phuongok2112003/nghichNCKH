@@ -69,7 +69,7 @@ def load_graph_from_folder(folder_path):
     for data in node_features.values():
         words = list(data.values())
         vectors = [node_model.wv[word] for word in words if word in node_model.wv]
-        x.append(np.mean(vectors, axis=0) if vectors else np.zeros(100))  # 100 chiều vector
+        x.append(np.mean(vectors, axis=0) if vectors else np.zeros(50))  # 100 chiều vector
 
     x = torch.tensor(x, dtype=torch.float)
 

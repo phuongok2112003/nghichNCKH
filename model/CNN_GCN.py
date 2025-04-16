@@ -66,7 +66,7 @@ class GraphModel(nn.Module):
         edge_features = self.edge_cnn(data.edge_attr) if data.edge_attr is not None else None
 
         # **Dùng Attention Pooling thay vì Mean/Max**
-        node_features = self.att(node_features, data.batch)
+        node_features = global_mean_pool(node_features, data.batch)
 
         if edge_features is not None:
             edge_batch = data.batch[data.edge_index[0]]  
@@ -115,8 +115,8 @@ for g in train_graphs:
 size_remaining_graphs=len(remaining_graphs)
 print("Do dai cua data: ",len(balanced_graphs))
 print("Length cua data re con lai: ",len(remaining_graphs))
-# train_graphs=train_graphs+remaining_graphs[:18000]
-# test_graphs = test_graphs+remaining_graphs[18000:]
+train_graphs=train_graphs+remaining_graphs[:18000]
+test_graphs = test_graphs+remaining_graphs[18000:]
 # === 2. Extract Features from GraphModel ===
 # === 3. Save and Load Fixed Weights ===
 WEIGHT_PATH = "fixed_weights.pth"
@@ -137,8 +137,8 @@ def load_fixed_weights(model):
         print("⚠️ Chưa có file trọng số, cần lưu trước!")
 
 # === 4. Khởi tạo mô hình và sử dụng trọng số cố định ===
-model = GraphModel(node_input_dim=50, node_hidden_dim=64, node_output_dim=32,
-                   edge_input_dim=50, edge_output_dim=32, final_dim=2).to(device)
+model = GraphModel(node_input_dim=50, node_hidden_dim=64, node_output_dim=16,
+                   edge_input_dim=50, edge_output_dim=16, final_dim=2).to(device)
 
 if not os.path.exists(WEIGHT_PATH):
     print("🚀 Lưu trọng số cố định lần đầu...")
