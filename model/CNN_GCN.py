@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.nn import Linear
 import os
-# === 1. Define the Model ===
+
 
 def set_seed(seed=42):
     torch.manual_seed(seed)
@@ -56,16 +56,16 @@ class GraphModel(nn.Module):
         self.node_gcn = NodeGCN(node_input_dim, node_hidden_dim, node_output_dim)
         self.edge_cnn = EdgeCNN(edge_input_dim, edge_output_dim)
 
-        self.att = GlobalAttention(gate_nn=Linear(node_output_dim, 1))  # Thêm Attention Pooling
+        self.att = GlobalAttention(gate_nn=Linear(node_output_dim, 1))  
 
-        graph_feature_dim = node_output_dim + edge_output_dim  # Tổng số chiều của đặc trưng graph
+        graph_feature_dim = node_output_dim + edge_output_dim  
         self.fc = nn.Linear(graph_feature_dim, final_dim)
 
     def forward(self, data):
         node_features = self.node_gcn(data.x, data.edge_index)
         edge_features = self.edge_cnn(data.edge_attr) if data.edge_attr is not None else None
 
-        # **Dùng Attention Pooling thay vì Mean/Max**
+      
         node_features = global_mean_pool(node_features, data.batch)
 
         if edge_features is not None:
@@ -81,7 +81,7 @@ class GraphModel(nn.Module):
 
 
 
-# === 1. Load Data ===
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 graphs = torch.load('graphs.pt', weights_only=False)
 
@@ -91,7 +91,7 @@ print("Length cua graphs: ",len(graphs))
 graphs_0 = [g for g in graphs if g.y.item() == 0]
 graphs_1 = [g for g in graphs if g.y.item() == 1]
 
-# Lấy số lượng nhỏ hơn giữa hai loại nhãn
+
 min_size = min(len(graphs_0), len(graphs_1))
 print(f"Balancing dataset to {min_size} samples per class...")
 
@@ -104,7 +104,7 @@ np.random.shuffle(balanced_graphs)
 
 np.random.shuffle(remaining_graphs)
 
-# === 4. Split into Train/Test Sets ===
+
 print("Splitting into train (80%) and test (20%)...")
 train_graphs, test_graphs = train_test_split(
     balanced_graphs, test_size=0.2, random_state=11, stratify=[g.y.item() for g in balanced_graphs]
@@ -117,8 +117,7 @@ print("Do dai cua data: ",len(balanced_graphs))
 print("Length cua data re con lai: ",len(remaining_graphs))
 train_graphs=train_graphs+remaining_graphs[:18000]
 test_graphs = test_graphs+remaining_graphs[18000:]
-# === 2. Extract Features from GraphModel ===
-# === 3. Save and Load Fixed Weights ===
+
 WEIGHT_PATH = "fixed_weights.pth"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -131,12 +130,12 @@ def load_fixed_weights(model):
     """Tải trọng số cố định nếu đã có file."""
     if os.path.exists(WEIGHT_PATH):
         model.load_state_dict(torch.load(WEIGHT_PATH, map_location=device))
-        model.eval()  # Đặt chế độ inference
+        model.eval()  
         print(f"✅ Đã tải trọng số cố định từ '{WEIGHT_PATH}'.")
     else:
         print("⚠️ Chưa có file trọng số, cần lưu trước!")
 
-# === 4. Khởi tạo mô hình và sử dụng trọng số cố định ===
+
 model = GraphModel(node_input_dim=50, node_hidden_dim=64, node_output_dim=16,
                    edge_input_dim=50, edge_output_dim=16, final_dim=2).to(device)
 
@@ -162,19 +161,19 @@ def extract_features(graphs):
     y = np.hstack(labels)
     return X, y
 
-# Trích xuất đặc trưng cho tập train và test
+
 X_train, y_train = extract_features(train_graphs)
 X_test, y_test = extract_features(test_graphs)
 
 print("X_train[0] ",X_train[0])
-# === 3. Apply SMOTE to Train Set ===
+
 smote = SMOTE(random_state=42)
 X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
 print("Before SMOTE:", np.bincount(y_train))
 print("After SMOTE:", np.bincount(y_train_resampled))
 
-# === 4. Convert Back to PyG Data ===
+
 def convert_to_graphs(X, y):
     new_graphs = []
     for i in range(len(X)):
@@ -185,11 +184,11 @@ def convert_to_graphs(X, y):
         new_graphs.append(graph_data)
     return new_graphs
 
-# Tạo tập train và test mới
+
 train_graphs_resampled = convert_to_graphs(X_train_resampled, y_train_resampled)
 test_graphs_final = convert_to_graphs(X_test, y_test)
 
-# === 5. Save Processed Data ===
+
 torch.save(train_graphs_resampled, 'train_graphs.pt')
 torch.save(test_graphs_final, 'test_graphs.pt')
 print("Saved train_graphs.pt (balanced) and test_graphs.pt (original).")

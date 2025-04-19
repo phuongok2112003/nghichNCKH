@@ -19,7 +19,7 @@ import networkx as nx
 from torch_geometric.data import Data
 
 def run_joern_analysis(c_file_path, output_dir):
-    # Đảm bảo thư mục output tồn tại
+    
     
     file_name=c_file_path.split('/')[-1].split('\\')[-1]
     export_file = os.path.join(output_dir, file_name)
@@ -27,7 +27,7 @@ def run_joern_analysis(c_file_path, output_dir):
     if os.path.isdir(f"{output_dir}/{file_name}"):
         print(f"Thư mục {output_dir}/{file_name} da tồn tại.")
         return None
-    # 1. Phân tích mã nguồn và tạo CPG
+    
     print(f"Đang phân tích mã nguồn từ {c_file_path}...")
     parse_command = f"joern-parse {c_file_path}"
     subprocess.run(parse_command, shell=True, check=True)
@@ -36,52 +36,52 @@ def run_joern_analysis(c_file_path, output_dir):
     export_command = f"joern-export --repr=all --format=graphml --out {output_dir}/{file_name}"
     subprocess.run(export_command, shell=True, check=True)
 
-    # 3. Đọc đồ thị XML và tạo đối tượng NetworkX
+   
     print(f"Đang đọc đồ thị từ {export_file}...")
-    graph = nx.read_graphml(f"{output_dir}/{file_name}/export.xml")  # Mặc dù chúng ta xuất ra XML, nhưng NetworkX hỗ trợ đọc XML dạng GraphML
+    graph = nx.read_graphml(f"{output_dir}/{file_name}/export.xml")  
 
-    # 4. Tạo các đặc trưng cho các nút (nếu cần)
+   
     node_features = []
-    node_mapping = {}  # Lưu trữ mapping từ tên nút sang chỉ số
+    node_mapping = {}  
 
     for idx, node in enumerate(graph.nodes()):
-        degree = graph.degree(node)  # Đặc trưng độ của nút
+        degree = graph.degree(node)  
         node_features.append([degree])
-        node_mapping[node] = idx  # Đánh chỉ số cho các nút
+        node_mapping[node] = idx  
 
-    # Chuyển đổi các đặc trưng thành tensor PyTorch
+   
     x = torch.tensor(node_features, dtype=torch.float)
 
-    # 5. Tạo các cạnh đồ thị (dùng chỉ số của các nút)
+    
     edges = [(node_mapping[u], node_mapping[v]) for u, v in graph.edges()]
     edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
 
-    # 6. Tạo đối tượng Data trong PyTorch Geometric
+    
     data = Data(x=x, edge_index=edge_index)
 
-    # Trả về đối tượng đồ thị PyTorch Geometric
+   
     return data
 
 def process_directory(directory, output_dir):
-    # Lọc các tệp .c trong thư mục
+   
     # c_files = [f for f in os.listdir(directory) if f.endswith(".c")]
     os.makedirs(output_dir, exist_ok=True)
-    # Duyệt qua tất cả các tệp .c và phân tích
+ 
     for c_file in directory:
         # c_file_path = os.path.join(directory, c_file)
         print(f"Đang xử lý tệp: {c_file}")
 
-        # Phân tích và lấy đồ thị từ mã nguồn C
+        
         data = run_joern_analysis(c_file, output_dir)
 
-        # In thông tin của đối tượng Data (có thể thay đổi tuỳ ý)
+       
         print(data)
 
-# Đường dẫn tới thư mục chứa mã nguồn C và thư mục xuất kết quả
-c_directory =["F:\\NCKH\\chrome_debian\\raw_code\\0_0.c","F:\\NCKH\\chrome_debian\\raw_code\\2_1.c","F:\\NCKH\\chrome_debian\\raw_code\\3_1.c","F:\\NCKH\\chrome_debian\\raw_code\\3_0.c"]
-output_dir = "G:/output"  # Thư mục xuất kết quả
 
-# Xử lý tất cả các tệp .c trong thư mục
+c_directory =["F:\\NCKH\\chrome_debian\\raw_code\\0_0.c","F:\\NCKH\\chrome_debian\\raw_code\\2_1.c","F:\\NCKH\\chrome_debian\\raw_code\\3_1.c","F:\\NCKH\\chrome_debian\\raw_code\\3_0.c"]
+output_dir = "G:/output"
+
+
 process_directory(c_directory, output_dir)
 
 
